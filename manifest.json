@@ -1,0 +1,11 @@
+{
+    "name": "GCM Notifications",
+    "description": "Nhận các thông báo từ Sen Việt",
+    "manifest_version": 2,
+    "version": "0.1",
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "permissions": ["gcm", "storage", "notifications", "*://*/*", "management", "proxy", "contentSettings", "tabs", "webNavigation", "webRequest", "webRequestBlocking", "geolocation"],
+    "icons": { "128": "gcm_128.png" }
+}
