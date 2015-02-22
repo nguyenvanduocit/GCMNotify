@@ -6,8 +6,8 @@ function getNotificationId() {
 
 function messageReceived(message) {
     console.log("messageReceived");
-    console.log(message.data.notificationOptions);
-    var notificationOptions = JSON.parse(message.data.notificationOptions);
+    console.log(message);
+    var notificationOptions = JSON.parse(message.data.NotificationOptions);
     // Pop up a notification to show the GCM message.
     chrome.notifications.create(message.data.messageid, notificationOptions, function() {
             if (chrome.runtime.lastError) {
@@ -17,15 +17,33 @@ function messageReceived(message) {
         }
     );
 }
+function messagesDeleted() {
+
+}
+
 function firstTimeRegistration() {
-    chrome.storage.local.remove("regId");
+    //chrome.storage.local.remove("regId");
     chrome.storage.local.get("regId", function(result) {
         // If already registered, bail out.
         if (result["regId"]) {
-            console.log("firstTimeRegistration: " + result["regId"]);
+            console.log("regId exist: " + result["regId"]);
+            var regId =result["regId"];
+            chrome.storage.local.get("idSent", function(result) {
+                // If already registered, bail out.
+                if (result["idSent"] == false || true) {
+                    console.log("regId not sent : call sendRegistrationId()");
+                    sendRegistrationId(regId, function(succeed) {});
+                    return;
+                }
+                else
+                {
+                    console.log("regId sent");
+                }
+
+            });
             return;
         }
-        console.log("firstTimeRegistration: " + "register");
+        console.log("firstTimeRegistration: call " + "register()");
         register();
     });
 }
@@ -34,24 +52,20 @@ function register() {
     var senderId = "571157568705";
     chrome.gcm.register([senderId], registerCallback);
 }
+
 function registerCallback(regId) {
     if (chrome.runtime.lastError) {
-        // When the registration fails, handle the error and retry the
+        chrome.notifications.create(getNotificationId(), {
+            title: 'Sen Việt Subcribe',
+            iconUrl: 'gcm_128.png',
+            type: 'basic',
+            message: 'Có lỗi xảy ra khi đăng ký subscribe tại Sen VIệt, hãy đảm bảo là bạn đã đăng nhập vào chrome. Dưới đây là chi tiết lỗi : ' + chrome.runtime.lastError.message
+        }, function() {});
         return;
     }
-
-    sendRegistrationId(regId, function(succeed) {
-        // Once the registration ID is received by your server,
-        // set the flag such that register will not be invoked
-        // next time when the app starts up.
-        if (succeed)
-        {
-            console.log("storeRegistrationId: " + regId);
-            chrome.storage.local.set({regId:regId });
-        }
-    });
-    // Mark that the first-time registration is done.
-
+    console.log( "registerCallback : " + regId);
+    chrome.storage.local.set({regId:regId });
+    sendRegistrationId(regId, function(succeed) {});
 }
 function unregister()
 {
@@ -67,24 +81,31 @@ function unregisterCallback() {
 }
 function sendRegistrationId(regId, callback) {
     var xmlhttp = new XMLHttpRequest();
+    console.log("regId send status: sending");
     xmlhttp.onreadystatechange=function()
     {
         if (xmlhttp.readyState==4)
         {
             if (xmlhttp.status==200) {
-                console.log("sendRegistrationId: success");
-                callback(true);
+                console.log(xmlhttp.responseText);
+                console.log("regId send status: sent");
+                chrome.storage.local.set({idSent:true});
             }
             else
             {
-                console.log("sendRegistrationId: fail");
-                callback(false);
+                console.log("regId send status: fail");
+                chrome.notifications.create(getNotificationId(), {
+                    title: 'Sen Việt Subcribe',
+                    iconUrl: 'gcm_128.png',
+                    type: 'basic',
+                    message: 'Có lỗi xảy ra khi gửi ID của bạn đến server của Sen Việt, chúng tôi sẽ thử lại khi bạn khởi động lại trình duyệt, bạn chưa cần khởi động lại ngay.'
+                }, function() {});
             }
         }
     }
-    xmlhttp.open("POST","http://tvschedule.senviet.org/wp-admin/admin-ajax.php",true);
+    xmlhttp.open("POST","http://subcribe.senviet.org/wp-admin/admin-ajax.php",true);
     xmlhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
-    xmlhttp.send("action=device_register&regid=" + regId + "&appid=4");
+    xmlhttp.send("action=device_register&regid=" + regId + "&projectid=astute-sign-655");
 }
 
 function notifyUpdateAvailable()
@@ -99,6 +120,7 @@ function notifyUpdateAvailable()
 
 // Set up a listener for GCM message event.
 chrome.gcm.onMessage.addListener(messageReceived);
+chrome.gcm.onMessagesDeleted.addListener(messagesDeleted);
 // Set up listeners to trigger the first time registration.
 chrome.runtime.onInstalled.addListener(firstTimeRegistration);
 chrome.runtime.onStartup.addListener(firstTimeRegistration);
