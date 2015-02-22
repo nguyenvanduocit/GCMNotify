@@ -1,15 +1,48 @@
+var messsages = {};
 // Returns a new notification ID used in the notification.
 function getNotificationId() {
     var id = Math.floor(Math.random() * 9007199254740992) + 1;
     return id.toString();
 }
-
-function messageReceived(message) {
-    console.log("messageReceived");
+function onMessageReceived(message) {
+    console.log("messageReceived : ");
     console.log(message);
-    var notificationOptions = JSON.parse(message.data.NotificationOptions);
-    // Pop up a notification to show the GCM message.
-    chrome.notifications.create(message.data.messageid, notificationOptions, function() {
+
+    message.data.NotificationOptions = JSON.parse(message.data.NotificationOptions);
+
+    if(typeof message.data.buttons != "undefined"){
+        message.data.buttons = JSON.parse(message.data.buttons);
+    }
+
+    if(typeof message.data.items != "undefined"){
+        message.data.items = JSON.parse(message.data.items);
+    }
+
+    messsages[message.data.messageid] = message;
+
+    if(message.data.buttons){
+        var buttons = message.data.buttons;
+        message.data.NotificationOptions.buttons = [];
+        for(var i=0;i<buttons.length; i++){
+            message.data.NotificationOptions.buttons.push({
+                "title":buttons[i].title,
+                "iconUrl":buttons[i].iconUrl
+            });
+        }
+    }
+
+    if(message.data.items){
+        var items = message.data.items;
+        message.data.NotificationOptions.items = [];
+        for(var i=0;i<items.length; i++){
+            message.data.NotificationOptions.items.push({
+                "title":items[i].title,
+                "message":items[i].message
+            });
+        }
+    }
+
+    chrome.notifications.create(message.data.messageid, message.data.NotificationOptions, function() {
             if (chrome.runtime.lastError) {
                 console.log(chrome.runtime.lastError);
                 return;
@@ -17,8 +50,40 @@ function messageReceived(message) {
         }
     );
 }
-function messagesDeleted() {
+function onMessageClosed(notificationId, byUser) {
+    console.log(notificationId + " is closed.");
+    delete messsages[notificationId];
+}
 
+function onMessageClicked(notificationId){
+    console.log(notificationId + " clicked");
+    if( typeof messsages[notificationId] != "undefined"){
+        var createProperties = {
+            windowId:chrome.windows.WINDOW_ID_CURRENT,
+            url : messsages[notificationId].data.url,
+            active:true,
+            selected:true
+        };
+        chrome.tabs.create(createProperties, function(){});
+        chrome.notifications.clear(notificationId, function(wasCleared){});
+    }
+}
+function onButtonClicked(notificationId, buttonIndex){
+    console.log(notificationId + " clicked");
+    if( typeof messsages[notificationId] != "undefined"){
+        var message = messsages[notificationId];
+        if(typeof message.data.buttons[buttonIndex]) {
+            var button = message.data.buttons[buttonIndex];
+            var createProperties = {
+                windowId: chrome.windows.WINDOW_ID_CURRENT,
+                url: button.url,
+                active: true,
+                selected: true
+            };
+            chrome.tabs.create(createProperties, function () {});
+            chrome.notifications.clear(notificationId, function(wasCleared){});
+        }
+    }
 }
 
 function firstTimeRegistration() {
@@ -30,7 +95,7 @@ function firstTimeRegistration() {
             var regId =result["regId"];
             chrome.storage.local.get("idSent", function(result) {
                 // If already registered, bail out.
-                if (result["idSent"] == false || true) {
+                if (result["idSent"] == false) {
                     console.log("regId not sent : call sendRegistrationId()");
                     sendRegistrationId(regId, function(succeed) {});
                     return;
@@ -119,8 +184,12 @@ function notifyUpdateAvailable()
 }
 
 // Set up a listener for GCM message event.
-chrome.gcm.onMessage.addListener(messageReceived);
-chrome.gcm.onMessagesDeleted.addListener(messagesDeleted);
+chrome.gcm.onMessage.addListener(onMessageReceived);
+
+chrome.notifications.onClosed.addListener(onMessageClosed);
+chrome.notifications.onClicked.addListener(onMessageClicked);
+chrome.notifications.onButtonClicked.addListener(onButtonClicked);
+//chrome.gcm.onMessagesDeleted.addListener(messagesDeleted);
 // Set up listeners to trigger the first time registration.
 chrome.runtime.onInstalled.addListener(firstTimeRegistration);
 chrome.runtime.onStartup.addListener(firstTimeRegistration);
