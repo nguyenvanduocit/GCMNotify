@@ -1,11 +1,12 @@
 {
-    "name": "GCM Notifications",
-    "description": "Nhận các thông báo từ Sen Việt",
+    "name": "Sen Việt Notifications",
+    "description": "Extension giúp nhận thông báo từ Sen Việt.",
     "manifest_version": 2,
-    "version": "1.0.0",
+    "version": "1.0.1",
     "background": {
-        "scripts": ["background.js"]
+        "scripts": ["analytics.js", "background.js"]
     },
-    "permissions": ["gcm", "storage", "notifications", "*://*/*", "management", "proxy", "contentSettings", "tabs", "webNavigation", "webRequest", "webRequestBlocking", "geolocation"],
-    "icons": { "128": "gcm_128.png" }
+    "permissions": ["gcm", "storage", "notifications", "*://*/*", "management", "tabs", "webNavigation"],
+    "icons": { "128": "gcm_128.png" },
+    "content_security_policy": "script-src 'self' https://ssl.google-analytics.com/ga.js; object-src 'self'"
 }

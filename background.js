@@ -7,7 +7,6 @@ function getNotificationId() {
 function onMessageReceived(message) {
     console.log("messageReceived : ");
     console.log(message);
-
     message.data.NotificationOptions = JSON.parse(message.data.NotificationOptions);
 
     if(typeof message.data.buttons != "undefined"){
@@ -49,9 +48,11 @@ function onMessageReceived(message) {
             }
         }
     );
+    trackRecived(message.data.messageid, message.data.NotificationOptions.title);
 }
 function onMessageClosed(notificationId, byUser) {
     console.log(notificationId + " is closed.");
+    trackClose(notificationId, messsages[notificationId].data.NotificationOptions.title);
     delete messsages[notificationId];
 }
 
@@ -66,6 +67,7 @@ function onMessageClicked(notificationId){
         };
         chrome.tabs.create(createProperties, function(){});
         chrome.notifications.clear(notificationId, function(wasCleared){});
+        trackClick(notificationId, messsages[notificationId].data.url);
     }
 }
 function onButtonClicked(notificationId, buttonIndex){
@@ -82,6 +84,7 @@ function onButtonClicked(notificationId, buttonIndex){
             };
             chrome.tabs.create(createProperties, function () {});
             chrome.notifications.clear(notificationId, function(wasCleared){});
+            trackClick(notificationId,button.url);
         }
     }
 }
